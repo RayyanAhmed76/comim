@@ -50,17 +50,33 @@ export default function Home() {
               type="button"
               onClick={() => enter(role, home)}
               className={cn(
-                'rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition',
-                'hover:border-brand-500/50 hover:shadow-md hover:ring-2 hover:ring-brand-500/20',
+                'group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm',
+                'transition-all duration-300 ease-out',
+                'hover:-translate-y-1.5 hover:scale-[1.02]',
+                'hover:border-sky-300 hover:bg-sky-50',
+                'hover:shadow-xl hover:shadow-sky-500/20',
+                'hover:ring-2 hover:ring-sky-400/30',
+                'active:translate-y-0 active:scale-[0.99]',
               )}
             >
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-50 ring-1 ring-sky-100">
-                  <Icon className="h-6 w-6 text-sky-500" />
+                <div
+                  className={cn(
+                    'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
+                    'bg-sky-50 ring-1 ring-sky-100',
+                    'transition-all duration-300',
+                    'group-hover:scale-110 group-hover:bg-sky-100 group-hover:ring-sky-200',
+                  )}
+                >
+                  <Icon className="h-6 w-6 text-sky-500 transition-colors duration-300 group-hover:text-brand-600" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-lg font-bold text-navy-900">{name}</div>
-                  <div className="text-sm text-slate-500">{t(roleKey)}</div>
+                  <div className="text-lg font-bold text-navy-900 transition-colors duration-300 group-hover:text-brand-700">
+                    {name}
+                  </div>
+                  <div className="text-sm text-slate-500 transition-colors duration-300 group-hover:text-sky-700">
+                    {t(roleKey)}
+                  </div>
                 </div>
               </div>
             </button>

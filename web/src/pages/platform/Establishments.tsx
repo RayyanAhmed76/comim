@@ -6,7 +6,8 @@ import { AppShell } from '@/components/layout/AppShell'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { establishments } from '@/data/mock'
+import { establishmentsStore } from '@/data/stores'
+import { fmtDate, useLang } from '@/lib/i18n'
 import { cn } from '@/lib/cn'
 
 function establishmentStatusLabel(status: string, t: (k: string) => string) {
@@ -20,6 +21,8 @@ const selectClass =
 
 export default function Establishments() {
   const { t } = useTranslation()
+  const lang = useLang()
+  const establishments = establishmentsStore.use()
   const location = useLocation()
   const [toast, setToast] = useState<string | null>(
     (location.state as { toast?: string } | null)?.toast ?? null,
@@ -46,10 +49,10 @@ export default function Establishments() {
         e.plan.toLowerCase().includes(q)
       )
     })
-  }, [query, status, plan])
+  }, [query, status, plan, establishments])
 
   return (
-    <AppShell title={t('platform.establishments')} breadcrumb={t('platform.establishments')}>
+    <AppShell breadcrumb={[{ label: t('platform.establishments') }]}>
       {toast && (
         <div className="mb-4 rounded-xl border border-success-600/30 bg-success-50 px-4 py-3 text-sm font-medium text-success-600">
           {toast}
@@ -146,7 +149,7 @@ export default function Establishments() {
                   <td className="px-5 py-4">{e.plan}</td>
                   <td className="px-5 py-4">{e.seats}</td>
                   <td className="px-5 py-4">{e.admin}</td>
-                  <td className="px-5 py-4">{e.expiry}</td>
+                  <td className="px-5 py-4">{fmtDate(e.expiry, lang)}</td>
                   <td className="px-5 py-4">
                     <Badge tone={e.status === 'Active' ? 'green' : 'orange'} dot>
                       {establishmentStatusLabel(e.status, t)}

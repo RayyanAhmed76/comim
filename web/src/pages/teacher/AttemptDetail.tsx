@@ -1,89 +1,94 @@
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Check, X } from 'lucide-react'
+import { useState } from 'react'
+import { Navigate, useParams } from 'react-router-dom'
+import { SlidersHorizontal } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '@/components/layout/AppShell'
-import { Badge } from '@/components/ui/Badge'
-import { Card } from '@/components/ui/Card'
-import { attempts, classes, students } from '@/data/mock'
-
-function attemptStatusLabel(status: string, t: (k: string) => string) {
-  if (status === 'Passed') return t('common.passed')
-  if (status === 'Needs Review') return t('common.needsReview')
-  return status
-}
+import { Button } from '@/components/ui/Button'
+import { Field, Modal, fieldClass } from '@/components/ui/Modal'
+import { ResultsView } from '@/components/training/ResultsView'
+import { useAuth } from '@/context/AuthContext'
+import { useLoc } from '@/lib/i18n'
+import { moduleNames } from '@/data/content'
+import { addSchoolAudit, attemptNumber, attemptsStore, classesStore, effectiveScore, studentsStore } from '@/data/stores'
 
 export function AttemptDetail() {
   const { attemptId } = useParams<{ attemptId: string }>()
   const { t } = useTranslation()
-  const attempt = attempts.find((a) => a.id === attemptId) ?? attempts.find((a) => a.questions.length > 0)!
+  const loc = useLoc()
+  const { user } = useAuth()
+  const attempts = attemptsStore.use()
+  const students = studentsStore.use()
+  const classes = classesStore.use()
+  const attempt = attempts.find((a) => a.id === attemptId)
+  const [open, setOpen] = useState(false)
+  const [score, setScore] = useState(attempt ? effectiveScore(attempt) : 0)
+  const [why, setWhy] = useState('')
+  if (!attempt) return <Navigate to="/teacher" replace />
   const student = students.find((s) => s.id === attempt.studentId)
   const cls = classes.find((c) => c.id === student?.classId)
+  const n = attemptNumber(attempts, attempt)
+
+  const adjust = () => {
+    const before = effectiveScore(attempt)
+    attemptsStore.set((p) => p.map((a) => (a.id === attempt.id ? { ...a, adjustedScore: score } : a)))
+    addSchoolAudit({
+      author: user?.name ?? '',
+      profile: 'teacher',
+      action: 'scoreAdjustment',
+      target: `${student?.name} · ${moduleNames[attempt.module].en}: ${before}% → ${score}%`,
+      screen: 'studentProfile',
+      justification: why.trim(),
+    })
+    setOpen(false)
+    setWhy('')
+  }
 
   return (
     <AppShell
-      breadcrumb={`${t('teacher.attemptDetail')} / ${cls?.name.split(' ')[0] ?? ''} · ${student?.name ?? ''} · ${attempt.exercise}`}
+      breadcrumb={[
+        { label: t('teacher.myClasses'), to: '/teacher' },
+        { label: cls?.name.split(' ')[0] ?? '', to: `/teacher/classes/${cls?.id}` },
+        { label: student?.firstName ?? '', to: `/teacher/students/${student?.id}` },
+        { label: `${loc(moduleNames[attempt.module])} #${n}` },
+      ]}
     >
-      <div className="space-y-6">
-        <Link
-          to={`/teacher/students/${attempt.studentId}`}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-brand-600 hover:underline"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t('teacher.backToStudentProfile')}
-        </Link>
-
-        <Card className="p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-ink">
-                {attempt.exercise} · {t('teacher.attempt')} {attempt.attempt}
-              </h1>
-              <p className="mt-1 text-sm text-muted">
-                {student?.name} · {cls?.name} · {attempt.date}
-              </p>
-            </div>
-            <Badge tone={attempt.status === 'Passed' ? 'green' : 'orange'} dot>
-              {attempt.score}% · {attemptStatusLabel(attempt.status, t)}
-            </Badge>
-          </div>
-        </Card>
-
-        {attempt.questions.length === 0 ? (
-          <Card className="p-6 text-center text-muted">{t('teacher.noQuestionBreakdown')}</Card>
-        ) : (
-          <div className="space-y-4">
-            {attempt.questions.map((q, i) => (
-              <Card key={i} className="p-6">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <h3 className="flex-1 font-semibold text-ink">{q.q}</h3>
-                  <Badge tone={q.correct ? 'green' : 'orange'}>
-                    {q.correct ? (
-                      <>
-                        <Check className="mr-1 inline h-3 w-3" />
-                        {t('common.correct')}
-                      </>
-                    ) : (
-                      <>
-                        <X className="mr-1 inline h-3 w-3" />
-                        {t('common.incorrect')}
-                      </>
-                    )}
-                  </Badge>
-                </div>
-                <p className="mt-3 text-sm text-muted">
-                  {t('teacher.answerGiven')}: <span className="font-medium text-ink">{q.given}</span>
-                </p>
-                {!q.correct && q.expected && (
-                  <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm">
-                    <span className="font-semibold text-muted">{t('teacher.expectedAnswer')}:</span>{' '}
-                    <span className="text-ink">{q.expected}</span>
-                  </div>
-                )}
-              </Card>
-            ))}
+      <div className="-mx-4 -my-4 sm:-mx-6 sm:-my-6">
+        {attempt.module !== 'tour' && (
+          <div className="mx-auto flex max-w-5xl justify-end px-4 pt-6 sm:px-6">
+            <Button variant="secondary" onClick={() => setOpen(true)}>
+              <SlidersHorizontal className="h-4 w-4" />
+              {t('dash.adjustScore')}
+            </Button>
           </div>
         )}
+        <ResultsView attempt={attempt} attemptNo={n} menuPath={`/teacher/students/${student?.id}`} menuLabel={t('teacher.backToStudentProfile')} showResultsLink={false} />
       </div>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={t('dash.adjustScore')}
+        subtitle={t('dash.adjustScoreHint')}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button disabled={why.trim().length < 5} onClick={adjust}>
+              {t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Field label={`${t('teacher.score')} (%)`}>
+            <input type="number" min={0} max={100} value={score} onChange={(e) => setScore(Number(e.target.value))} className={fieldClass} />
+          </Field>
+          <Field label={t('dash.justification')}>
+            <textarea value={why} onChange={(e) => setWhy(e.target.value)} rows={3} className={fieldClass} placeholder={t('dash.justificationPlaceholder')} />
+          </Field>
+        </div>
+      </Modal>
     </AppShell>
   )
 }

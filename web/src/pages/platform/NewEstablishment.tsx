@@ -7,6 +7,8 @@ import { AppShell } from '@/components/layout/AppShell'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { cn } from '@/lib/cn'
+import { uid } from '@/lib/store'
+import { addPlatformAudit, establishmentsStore } from '@/data/stores'
 
 const fieldClass =
   'mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-ink shadow-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20'
@@ -48,6 +50,24 @@ export default function NewEstablishment() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
+    const id = uid('est')
+    const expiry = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10)
+    establishmentsStore.set((p) => [
+      ...p,
+      {
+        id,
+        name: name.trim(),
+        city: city.trim() || '—',
+        plan: plan as 'Discovery' | 'Establishment' | 'Custom',
+        seats: Number(seats) || 1,
+        usedSeats: 0,
+        admin: adminName.trim(),
+        expiry,
+        status: 'Active',
+        features: { web: true, vr: plan !== 'Discovery', live: plan !== 'Discovery', exploded: plan !== 'Discovery', quiz: plan !== 'Discovery', csv: plan === 'Custom' },
+      },
+    ])
+    addPlatformAudit({ author: 'Rania Amrani', action: 'establishmentCreation', target: name.trim(), establishmentId: id })
     navigate('/platform/establishments', {
       state: {
         toast: t('platform.establishmentCreatedToast', { name: name.trim() }),
@@ -56,7 +76,7 @@ export default function NewEstablishment() {
   }
 
   return (
-    <AppShell breadcrumb={`${t('platform.establishments')} / ${t('platform.newEstablishmentTitle')}`}>
+    <AppShell breadcrumb={[{ label: t('platform.establishments'), to: '/platform/establishments' }, { label: t('platform.newEstablishmentTitle') }]}>
       <div className="space-y-5">
         <div>
           <Link

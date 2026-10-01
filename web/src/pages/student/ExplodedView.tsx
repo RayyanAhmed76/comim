@@ -1,85 +1,64 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { BackPill, EngineRoomBadge, TrainingShell } from '@/components/training/TrainingShell'
+import { useLocation } from 'react-router-dom'
+import { Boxes, Combine } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
-import { useAuth } from '@/context/AuthContext'
-import { components } from '@/data/mock'
-import { cn } from '@/lib/cn'
+import { MachineView } from '@/components/training/MachineView'
+import { TrainingShell } from '@/components/training/TrainingShell'
+import { VrShell } from '@/pages/vr/VrChrome'
+import { useLoc } from '@/lib/i18n'
+import { catalogue, partName, type PartId } from '@/data/content'
 
-const positions = [
-  { x: -120, y: -80 },
-  { x: 100, y: -100 },
-  { x: -80, y: 60 },
-  { x: 120, y: 40 },
-  { x: -140, y: 120 },
-  { x: 60, y: 130 },
-]
-
+/** Exploded View — same 3D model as the Guided Tour. Used by Lesson Preview and the VR menu. */
 export default function ExplodedView() {
-  const [active, setActive] = useState<number | null>(null)
-  const [assembled, setAssembled] = useState(false)
-  const { logout } = useAuth()
-  const navigate = useNavigate()
+  const { t } = useTranslation()
+  const loc = useLoc()
+  const location = useLocation()
+  const vr = location.pathname.startsWith('/vr')
+  const [exploded, setExploded] = useState(true)
+  const [active, setActive] = useState<PartId | null>(null)
+  const comp = active ? catalogue.find((c) => c.part === active) : null
 
-  return (
-    <TrainingShell
-      badge="Exploded View"
-      right={<EngineRoomBadge />}
-      onLogout={() => {
-        logout()
-        navigate('/')
-      }}
-    >
-      <div className="relative flex min-h-[calc(100vh-57px)] flex-col">
-        <div className="px-6 pt-6">
-          <BackPill to="/student/catalog" label="Catalog" />
-        </div>
-
-        <div className="relative flex flex-1 items-center justify-center overflow-hidden p-8">
-          <div className="relative h-[420px] w-full max-w-3xl">
-            {components.map((c, i) => {
-              const pos = assembled ? { x: 0, y: i * 8 - 20 } : positions[i]
-              return (
-                <button
-                  key={c.name}
-                  type="button"
-                  onClick={() => setActive(i)}
-                  style={{
-                    transform: `translate(${pos.x}px, ${pos.y}px)`,
-                  }}
-                  className={cn(
-                    'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
-                    'rounded-2xl border border-sky-400/30 bg-navy-800/90 px-4 py-3 text-sm font-semibold text-white shadow-lg',
-                    'transition-all duration-700 ease-in-out',
-                    active === i && 'ring-2 ring-orange-400',
-                  )}
-                >
-                  {c.name}
-                  {active === i && (
-                    <div className="absolute -bottom-2 left-1/2 z-20 w-56 -translate-x-1/2 translate-y-full rounded-xl bg-white p-3 text-left text-xs font-normal text-ink shadow-xl">
-                      <div className="font-bold text-ink">{c.name}</div>
-                      <p className="mt-1 text-muted">{c.definition}</p>
-                      <p className="mt-2 text-slate-600">{c.note}</p>
-                    </div>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="border-t border-white/10 px-6 py-4 text-center">
-          <Button
-            variant="dark"
-            onClick={() => {
-              setAssembled((v) => !v)
-              setActive(null)
-            }}
-          >
-            {assembled ? 'Explode again' : 'Reassemble'}
-          </Button>
-        </div>
+  const body = (
+    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <div className="relative min-h-[360px] flex-1 p-2 sm:p-4 lg:min-h-0">
+        <MachineView
+          exploded={exploded}
+          highlight={active ? [active] : []}
+          onPartClick={setActive}
+          showLabels
+          controls={
+            <Button variant="dark" onClick={() => setExploded((v) => !v)}>
+              {exploded ? <Combine className="h-4 w-4" /> : <Boxes className="h-4 w-4" />}
+              {exploded ? t('student.reassemble') : t('exploded.explode')}
+            </Button>
+          }
+        />
       </div>
+      <aside className="w-full border-t border-white/10 bg-[#0c1a2e]/95 p-5 text-white lg:w-[340px] lg:border-t-0 lg:border-l">
+        {comp && active ? (
+          <div className="rounded-2xl bg-white p-5 text-ink">
+            <h2 className="text-lg font-bold">{loc(partName(active))}</h2>
+            <p className="mt-2 text-sm">{loc(comp.definition)}</p>
+            <p className="mt-3 rounded-xl bg-orange-50 px-3 py-2 text-sm text-orange-900">{loc(comp.hint)}</p>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-300">{t('exploded.pickPart')}</p>
+        )}
+      </aside>
+    </div>
+  )
+
+  if (vr) {
+    return (
+      <VrShell badge={t('student.explodedView')} hints={[t('vr.pinchSelect'), t('vr.menuForControls')]}>
+        {body}
+      </VrShell>
+    )
+  }
+  return (
+    <TrainingShell preview crumbs={[{ label: t('nav.lessonPreview'), to: '/teacher/preview' }, { label: t('student.explodedView') }]}>
+      {body}
     </TrainingShell>
   )
 }

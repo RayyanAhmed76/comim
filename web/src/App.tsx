@@ -1,4 +1,7 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { RequireRole } from '@/context/AuthContext'
+import type { Role } from '@/data/mock'
+import { assignmentsStore } from '@/data/stores'
 
 import Home from '@/pages/Home'
 
@@ -9,30 +12,24 @@ import { AttemptDetail as TeacherAttemptDetail } from '@/pages/teacher/AttemptDe
 import { LiveSessions } from '@/pages/teacher/LiveSessions'
 import { LiveSessionView } from '@/pages/teacher/LiveSessionView'
 import { LessonPreview } from '@/pages/teacher/LessonPreview'
-import { EditAssignment } from '@/pages/teacher/EditAssignment'
 import { QuestionBank } from '@/pages/teacher/QuestionBank'
 
 import { Users } from '@/pages/admin/Users'
 import { Classes } from '@/pages/admin/Classes'
 import { AuditLog } from '@/pages/admin/AuditLog'
 import { Headsets } from '@/pages/admin/Headsets'
-import { HeadsetEdit } from '@/pages/admin/HeadsetEdit'
 import { Settings } from '@/pages/admin/Settings'
-import { UserEdit } from '@/pages/admin/UserEdit'
-import { ClassEdit } from '@/pages/admin/ClassEdit'
 
-import SignIn from '@/pages/student/SignIn'
 import CourseMenu from '@/pages/student/CourseMenu'
-import GuidedTour from '@/pages/student/GuidedTour'
-import Identification from '@/pages/student/Identification'
-import StartupProcedure from '@/pages/student/StartupProcedure'
-import Repair from '@/pages/student/Repair'
-import FinalQuiz from '@/pages/student/FinalQuiz'
 import MyResults from '@/pages/student/MyResults'
 import AttemptDetail from '@/pages/student/AttemptDetail'
-import FinalQuizDetail from '@/pages/student/FinalQuizDetail'
-import Catalog from '@/pages/student/Catalog'
+import Catalog, { ComponentView } from '@/pages/student/Catalog'
 import ExplodedView from '@/pages/student/ExplodedView'
+
+import GuidedTourModule from '@/pages/modules/GuidedTourModule'
+import IdentificationModule from '@/pages/modules/IdentificationModule'
+import ProcedureModule from '@/pages/modules/ProcedureModule'
+import FinalQuizModule from '@/pages/modules/FinalQuizModule'
 
 import PlatformOverview from '@/pages/platform/Overview'
 import Establishments from '@/pages/platform/Establishments'
@@ -44,73 +41,77 @@ import PlatformAudit from '@/pages/platform/Audit'
 
 import VrOnboarding from '@/pages/vr/Onboarding'
 import VrMenu from '@/pages/vr/Menu'
-import VrGuidedTour from '@/pages/vr/GuidedTour'
-import VrIdentification from '@/pages/vr/Identification'
-import VrStartup from '@/pages/vr/Startup'
-import VrRepair from '@/pages/vr/Repair'
-import VrFinalQuiz from '@/pages/vr/FinalQuiz'
-import VrExplodedView from '@/pages/vr/ExplodedView'
+
+const g = (roles: Role[], el: React.ReactNode) => <RequireRole roles={roles}>{el}</RequireRole>
+
+function LegacyAssignmentEdit() {
+  // Assignments are edited in a pop-up on the class Assignments tab
+  const { id } = useParams()
+  const a = assignmentsStore.get().find((x) => x.id === id)
+  return <Navigate to={a ? `/teacher/classes/${a.classId}?tab=assignments` : '/teacher'} replace />
+}
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/student/sign-in" element={<Navigate to="/" replace />} />
 
         {/* Teacher */}
-        <Route path="/teacher" element={<MyClasses />} />
-        <Route path="/teacher/classes/:id" element={<ClassDetail />} />
-        <Route path="/teacher/students/:studentId" element={<StudentProfile />} />
-        <Route path="/teacher/attempts/:attemptId" element={<TeacherAttemptDetail />} />
-        <Route path="/teacher/live" element={<LiveSessions />} />
-        <Route path="/teacher/live/:studentId" element={<LiveSessionView />} />
-        <Route path="/teacher/preview" element={<LessonPreview />} />
-        <Route path="/teacher/preview/exploded" element={<ExplodedView />} />
-        <Route path="/teacher/assignments/:id/edit" element={<EditAssignment />} />
-        <Route path="/teacher/question-bank" element={<QuestionBank />} />
+        <Route path="/teacher" element={g(['teacher'], <MyClasses />)} />
+        <Route path="/teacher/classes/:id" element={g(['teacher'], <ClassDetail />)} />
+        <Route path="/teacher/students/:studentId" element={g(['teacher'], <StudentProfile />)} />
+        <Route path="/teacher/attempts/:attemptId" element={g(['teacher'], <TeacherAttemptDetail />)} />
+        <Route path="/teacher/live" element={g(['teacher'], <LiveSessions />)} />
+        <Route path="/teacher/live/:studentId" element={g(['teacher'], <LiveSessionView />)} />
+        <Route path="/teacher/preview" element={g(['teacher'], <LessonPreview />)} />
+        <Route path="/teacher/preview/exploded" element={g(['teacher'], <ExplodedView />)} />
+        <Route path="/teacher/assignments/:id/edit" element={g(['teacher'], <LegacyAssignmentEdit />)} />
+        <Route path="/teacher/question-bank" element={g(['teacher', 'admin'], <QuestionBank />)} />
 
-        {/* Establishment admin */}
-        <Route path="/admin/users" element={<Users />} />
-        <Route path="/admin/users/:id/edit" element={<UserEdit />} />
-        <Route path="/admin/classes" element={<Classes />} />
-        <Route path="/admin/classes/:id/edit" element={<ClassEdit />} />
-        <Route path="/admin/audit" element={<AuditLog />} />
-        <Route path="/admin/headsets" element={<Headsets />} />
-        <Route path="/admin/headsets/:id" element={<HeadsetEdit />} />
-        <Route path="/admin/settings" element={<Settings />} />
+        {/* Client admin */}
+        <Route path="/admin/users" element={g(['admin'], <Users />)} />
+        <Route path="/admin/users/:id/edit" element={<Navigate to="/admin/users" replace />} />
+        <Route path="/admin/classes" element={g(['admin'], <Classes />)} />
+        <Route path="/admin/classes/:id/edit" element={<Navigate to="/admin/classes" replace />} />
+        <Route path="/admin/audit" element={g(['admin'], <AuditLog />)} />
+        <Route path="/admin/headsets" element={g(['admin'], <Headsets />)} />
+        <Route path="/admin/headsets/:id" element={<Navigate to="/admin/headsets" replace />} />
+        <Route path="/admin/settings" element={g(['admin'], <Settings />)} />
 
-        {/* Student web */}
-        <Route path="/student/sign-in" element={<SignIn />} />
-        <Route path="/student" element={<CourseMenu />} />
-        <Route path="/student/guided-tour" element={<GuidedTour />} />
-        <Route path="/student/identification" element={<Identification />} />
-        <Route path="/student/startup" element={<StartupProcedure />} />
-        <Route path="/student/repair" element={<Repair />} />
-        <Route path="/student/final-quiz" element={<FinalQuiz />} />
-        <Route path="/student/results" element={<MyResults />} />
-        <Route path="/student/results/final-quiz" element={<FinalQuizDetail />} />
-        <Route path="/student/attempt/:id" element={<AttemptDetail />} />
-        <Route path="/student/catalog" element={<Catalog />} />
-        <Route path="/student/exploded" element={<ExplodedView />} />
+        {/* Student web — teachers reach these through Lesson Preview (?preview=1) */}
+        <Route path="/student" element={g(['student'], <CourseMenu />)} />
+        <Route path="/student/guided-tour" element={g(['student'], <GuidedTourModule />)} />
+        <Route path="/student/identification" element={g(['student'], <IdentificationModule />)} />
+        <Route path="/student/startup" element={g(['student'], <ProcedureModule key="startup" kind="startup" />)} />
+        <Route path="/student/repair" element={g(['student'], <ProcedureModule key="repair" kind="repair" />)} />
+        <Route path="/student/final-quiz" element={g(['student'], <FinalQuizModule />)} />
+        <Route path="/student/results" element={g(['student'], <MyResults />)} />
+        <Route path="/student/results/final-quiz" element={<Navigate to="/student/results" replace />} />
+        <Route path="/student/attempt/:id" element={g(['student'], <AttemptDetail />)} />
+        <Route path="/student/catalog" element={g(['student', 'teacher'], <Catalog />)} />
+        <Route path="/student/catalog/:id" element={g(['student', 'teacher'], <ComponentView />)} />
+        <Route path="/student/exploded" element={<Navigate to="/student/catalog" replace />} />
 
         {/* Platform */}
-        <Route path="/platform" element={<PlatformOverview />} />
-        <Route path="/platform/establishments" element={<Establishments />} />
-        <Route path="/platform/establishments/new" element={<NewEstablishment />} />
-        <Route path="/platform/establishments/:id" element={<EstablishmentDetail />} />
-        <Route path="/platform/licenses" element={<Licenses />} />
-        <Route path="/platform/usage" element={<Usage />} />
-        <Route path="/platform/audit" element={<PlatformAudit />} />
+        <Route path="/platform" element={g(['platform'], <PlatformOverview />)} />
+        <Route path="/platform/establishments" element={g(['platform'], <Establishments />)} />
+        <Route path="/platform/establishments/new" element={g(['platform'], <NewEstablishment />)} />
+        <Route path="/platform/establishments/:id" element={g(['platform'], <EstablishmentDetail />)} />
+        <Route path="/platform/licenses" element={g(['platform'], <Licenses />)} />
+        <Route path="/platform/usage" element={g(['platform'], <Usage />)} />
+        <Route path="/platform/audit" element={g(['platform'], <PlatformAudit />)} />
 
-        {/* VR */}
+        {/* VR — sign-in on the headset happens on /vr */}
         <Route path="/vr" element={<VrOnboarding />} />
-        <Route path="/vr/menu" element={<VrMenu />} />
-        <Route path="/vr/guided-tour" element={<VrGuidedTour />} />
-        <Route path="/vr/identification" element={<VrIdentification />} />
-        <Route path="/vr/startup" element={<VrStartup />} />
-        <Route path="/vr/repair" element={<VrRepair />} />
-        <Route path="/vr/final-quiz" element={<VrFinalQuiz />} />
-        <Route path="/vr/exploded" element={<VrExplodedView />} />
+        <Route path="/vr/menu" element={g(['student'], <VrMenu />)} />
+        <Route path="/vr/guided-tour" element={g(['student'], <GuidedTourModule />)} />
+        <Route path="/vr/identification" element={g(['student'], <IdentificationModule />)} />
+        <Route path="/vr/startup" element={g(['student'], <ProcedureModule key="vr-startup" kind="startup" />)} />
+        <Route path="/vr/repair" element={g(['student'], <ProcedureModule key="vr-repair" kind="repair" />)} />
+        <Route path="/vr/final-quiz" element={g(['student'], <FinalQuizModule />)} />
+        <Route path="/vr/exploded" element={g(['student'], <ExplodedView />)} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -1,137 +1,83 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { ChevronRight, Eye } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChevronRight, Headphones, Monitor } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { EngineRoomBadge, TrainingShell } from '@/components/training/TrainingShell'
+import { TrainingShell } from '@/components/training/TrainingShell'
 import { useAuth } from '@/context/AuthContext'
-import { attempts } from '@/data/mock'
 import { cn } from '@/lib/cn'
+import { fmtDateTime, fmtDuration, useLang, useLoc } from '@/lib/i18n'
+import { moduleNames, PASS_THRESHOLD, type ModuleId } from '@/data/content'
+import { attemptsFor, attemptsStore, effectiveScore, progressKey, progressStore } from '@/data/stores'
 
-function scoreClass(score: number) {
-  return score >= 70 ? 'text-[#2E7D32]' : 'text-[#E65100]'
-}
-
-const byExercise: { key: string; label: string; items: { attempt: number; score: number; id?: string }[] }[] = [
-  {
-    key: 'identification',
-    label: 'IDENTIFICATION',
-    items: [
-      { attempt: 1, score: 58 },
-      { attempt: 2, score: 74, id: 'a5' },
-    ],
-  },
-  {
-    key: 'startup',
-    label: 'STARTUP PROCEDURE',
-    items: [
-      { attempt: 1, score: 62 },
-      { attempt: 2, score: 78, id: 'a3' },
-      { attempt: 3, score: 91, id: 'a1' },
-    ],
-  },
-  {
-    key: 'repair',
-    label: 'REPAIR',
-    items: [{ attempt: 1, score: 69, id: 'a2' }],
-  },
-]
+const ORDER: ModuleId[] = ['tour', 'identification', 'startup', 'repair', 'finalQuiz']
 
 export default function MyResults() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const { user } = useAuth()
   const { t } = useTranslation()
+  const loc = useLoc()
+  const lang = useLang()
+  const attempts = attemptsStore.use()
+  const saved = progressStore.use()
+  const studentId = user?.studentId ?? ''
 
   return (
-    <TrainingShell
-      badge={t('student.myResults')}
-      right={<EngineRoomBadge />}
-      onLogout={() => {
-        logout()
-        navigate('/')
-      }}
-      dark={false}
-    >
-      <div className="mx-auto max-w-3xl px-6 py-10">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-[#0A1633]">{t('student.myResultsTitle')}</h1>
-          <p className="mt-2 text-sm text-[#718096]">
-            {user?.name ?? 'Yassine Bakkali'} · 2A Marine Mechanics
-          </p>
-        </div>
+    <TrainingShell dark={false} crumbs={[{ label: t('student.courseMenu'), to: '/student' }, { label: t('student.myResults') }]}>
+      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+        <h1 className="text-center text-3xl font-bold text-[#0A1633]">{t('student.myResultsTitle')}</h1>
+        <p className="mt-2 text-center text-sm text-[#718096]">{t('results.allAttemptsHint')}</p>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-[#0A1633]">{t('student.resultsByExercise')}</h2>
-
-          <div className="mt-5 space-y-6">
-            {byExercise.map((group) => (
-              <div key={group.key}>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#A0AEC0]">
-                  {group.label}
-                </div>
-                <div className="space-y-1">
-                  {group.items.map((item) => {
-                    const row = (
-                      <div className="flex items-center justify-between rounded-xl px-2 py-3 transition hover:bg-slate-50">
-                        <span className="text-sm font-medium text-[#1A202C]">
-                          {t('teacher.attempt')} {item.attempt}
-                        </span>
-                        <div className="flex items-center gap-3">
-                          <span className={cn('text-sm font-bold', scoreClass(item.score))}>
-                            {item.score}%
-                          </span>
-                          <ChevronRight className="h-4 w-4 text-[#A0AEC0]" />
-                        </div>
-                      </div>
-                    )
-                    const detailId =
-                      item.id && attempts.find((a) => a.id === item.id && a.questions.length > 0)?.id
-                    if (detailId) {
-                      return (
-                        <Link key={`${group.key}-${item.attempt}`} to={`/student/attempt/${detailId}`}>
-                          {row}
+        <div className="mt-8 space-y-5">
+          {ORDER.map((m) => {
+            const list = attemptsFor(attempts, studentId, m)
+            const sp = saved[progressKey(studentId, m)]
+            return (
+              <section key={m} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-[#A0AEC0]">{loc(moduleNames[m])}</h2>
+                {list.length === 0 && !sp && <p className="mt-3 text-sm text-muted">{t('results.noAttempt')}</p>}
+                <ul className="mt-2 divide-y divide-slate-100">
+                  {list.map((a, i) => {
+                    const score = effectiveScore(a)
+                    return (
+                      <li key={a.id}>
+                        <Link to={`/student/attempt/${a.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-2 py-3 transition hover:bg-slate-50">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-[#1A202C]">
+                              {t('teacher.attempt')} {i + 1}
+                              {a.status === 'abandoned' && <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-700">{t('results.abandoned')}</span>}
+                            </div>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                              <span>{fmtDateTime(a.date, lang)}</span>
+                              <span className="inline-flex items-center gap-1">
+                                {a.device === 'VR' ? <Headphones className="h-3.5 w-3.5" /> : <Monitor className="h-3.5 w-3.5" />}
+                                {a.device}
+                              </span>
+                              <span>{fmtDuration(a.durationSec)}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {m !== 'tour' && (
+                              <span className={cn('text-sm font-bold', score >= PASS_THRESHOLD ? 'text-[#2E7D32]' : 'text-[#E65100]')}>
+                                {a.correct}/{a.total} · {score}%
+                              </span>
+                            )}
+                            {m === 'tour' && <span className="text-sm font-bold text-[#2E7D32]">{a.status === 'completed' ? t('common.completed') : ''}</span>}
+                            <ChevronRight className="h-4 w-4 text-[#A0AEC0]" />
+                          </div>
                         </Link>
-                      )
-                    }
-                    return <div key={`${group.key}-${item.attempt}`}>{row}</div>
+                      </li>
+                    )
                   })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold text-[#0A1633]">{t('student.gradedExam')}</h2>
-              <p className="mt-0.5 text-sm text-[#718096]">{t('student.finalQuizLabelShort')}</p>
-            </div>
-            <span className="rounded-full bg-[#E8F5E9] px-3 py-1 text-xs font-bold text-[#2E7D32]">
-              {t('common.passed')}
-            </span>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-slate-200 px-4 py-4">
-              <div className="text-xs font-medium uppercase tracking-wide text-[#718096]">
-                {t('teacher.score')}
-              </div>
-              <div className="mt-1 text-3xl font-bold text-[#0A1633]">82%</div>
-            </div>
-            <div className="rounded-xl border border-slate-200 px-4 py-4">
-              <div className="text-xs font-medium uppercase tracking-wide text-[#718096]">
-                {t('student.passingThreshold')}
-              </div>
-              <div className="mt-1 text-3xl font-bold text-[#0A1633]">70%</div>
-            </div>
-          </div>
-
-          <Link
-            to="/student/results/final-quiz"
-            className="mt-5 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#0A1633] hover:bg-slate-50"
-          >
-            <Eye className="h-4 w-4" />
-            {t('student.viewDetail')}
-          </Link>
+                  {sp && (
+                    <li className="flex items-center justify-between gap-3 px-2 py-3 text-sm">
+                      <span className="text-sky-800">{t('menu.savedOn', { date: fmtDateTime(sp.savedAt, lang) })}</span>
+                      <Link to={`/student/${m === 'tour' ? 'guided-tour' : m === 'finalQuiz' ? 'final-quiz' : m}`} className="rounded-lg bg-brand-600 px-3 py-1 text-xs font-semibold text-white">
+                        {t('menu.resume')}
+                      </Link>
+                    </li>
+                  )}
+                </ul>
+              </section>
+            )
+          })}
         </div>
       </div>
     </TrainingShell>

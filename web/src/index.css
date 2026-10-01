@@ -78,3 +78,14 @@ body {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}

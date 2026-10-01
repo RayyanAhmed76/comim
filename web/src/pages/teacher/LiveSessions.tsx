@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { Headphones, Monitor } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useLoc } from '@/lib/i18n'
+import { moduleNames } from '@/data/content'
 import { AppShell } from '@/components/layout/AppShell'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
@@ -9,9 +11,10 @@ import { liveSessions } from '@/data/mock'
 export function LiveSessions() {
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const loc = useLoc()
 
   return (
-    <AppShell breadcrumb={t('teacher.liveTitle')}>
+    <AppShell breadcrumb={[{ label: t('teacher.liveTitle') }]}>
       <div className="space-y-6">
         <Card className="p-6">
           <h1 className="text-2xl font-bold text-ink">{t('teacher.liveTitle')}</h1>
@@ -42,7 +45,7 @@ export function LiveSessions() {
               <div className="mt-4 space-y-2 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-muted">{t('teacher.exercise')}</span>
-                  <span className="font-medium text-ink">{session.exercise}</span>
+                  <span className="font-medium text-ink">{loc(moduleNames[session.exercise])}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted">{t('teacher.mode')}</span>

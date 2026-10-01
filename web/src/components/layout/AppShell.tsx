@@ -1,14 +1,11 @@
-import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import {
-  Bell,
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
-  LogOut,
   Menu,
   Monitor,
   PlaySquare,
-  Search,
   Settings,
   Headphones,
   Users,
@@ -17,14 +14,15 @@ import {
   KeyRound,
   BarChart3,
   Shield,
+  BookOpen,
   X,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
-import { LanguageSwitch } from '@/components/LanguageSwitch'
-import { useAuth } from '@/context/AuthContext'
+import { homeFor, useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/cn'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Breadcrumbs, GlobalSearch, NotificationBell, SchoolLogo, UserMenu, type Crumb } from '@/components/layout/HeaderParts'
 
 type NavItem = { to: string; labelKey: string; icon: React.ComponentType<{ className?: string }> }
 
@@ -32,6 +30,7 @@ const teacherNav: NavItem[] = [
   { to: '/teacher', labelKey: 'nav.myClasses', icon: LayoutGrid },
   { to: '/teacher/live', labelKey: 'nav.liveSessions', icon: Monitor },
   { to: '/teacher/preview', labelKey: 'nav.lessonPreview', icon: PlaySquare },
+  { to: '/teacher/question-bank', labelKey: 'nav.questionBank', icon: BookOpen },
 ]
 
 const adminNav: NavItem[] = [
@@ -56,13 +55,6 @@ function navFor(role: string) {
   return platformNav
 }
 
-function roleTitleKey(role?: string) {
-  if (role === 'teacher') return 'roles.teacher'
-  if (role === 'admin') return 'roles.admin'
-  if (role === 'platform') return 'roles.platform'
-  return 'roles.student'
-}
-
 export function AppShell({
   children,
   title,
@@ -70,15 +62,16 @@ export function AppShell({
 }: {
   children: React.ReactNode
   title?: string
-  breadcrumb?: string
+  /** A plain title or a clickable breadcrumb trail */
+  breadcrumb?: string | Crumb[]
 }) {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const { user } = useAuth()
   const location = useLocation()
   const { t } = useTranslation()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const items = navFor(user?.role ?? 'teacher')
+  const home = homeFor(user?.role)
 
   useEffect(() => {
     setMobileOpen(false)
@@ -91,37 +84,24 @@ export function AppShell({
     }
   }, [mobileOpen])
 
-  const renderNav = ({
-    compact,
-    showClose,
-    showCollapse,
-  }: {
-    compact: boolean
-    showClose?: boolean
-    showCollapse?: boolean
-  }) => (
+  const crumbs: Crumb[] = Array.isArray(breadcrumb) ? breadcrumb : [{ label: breadcrumb ?? title ?? '' }]
+
+  const renderNav = ({ compact, showClose, showCollapse }: { compact: boolean; showClose?: boolean; showCollapse?: boolean }) => (
     <>
       <div className={cn('border-b border-white/10 px-4 py-5', compact && 'px-3')}>
         <div className="flex items-center justify-between gap-2">
-          <Logo compact={compact} />
+          <Link to={home} aria-label={t('ui.mainMenu')}>
+            <Logo compact={compact} />
+          </Link>
           {showClose && (
-            <button
-              type="button"
-              className="rounded-lg p-2 text-slate-300 hover:bg-white/10"
-              onClick={() => setMobileOpen(false)}
-              aria-label="Close menu"
-            >
+            <button type="button" className="rounded-lg p-2 text-slate-300 hover:bg-white/10" onClick={() => setMobileOpen(false)} aria-label="Close menu">
               <X className="h-5 w-5" />
             </button>
           )}
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-3 pt-5">
-        {!compact && (
-          <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-            {t('nav.fwg')}
-          </div>
-        )}
+        {!compact && <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">{t('nav.fwg')}</div>}
         <nav className="space-y-1">
           {items.map((item) => {
             const Icon = item.icon
@@ -133,9 +113,7 @@ export function AppShell({
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition',
-                    isActive
-                      ? 'bg-navy-700 text-white shadow-inner ring-1 ring-white/10'
-                      : 'text-slate-300 hover:bg-white/5 hover:text-white',
+                    isActive ? 'bg-navy-700 text-white shadow-inner ring-1 ring-white/10' : 'text-slate-300 hover:bg-white/5 hover:text-white',
                     compact && 'justify-center px-2',
                   )
                 }
@@ -162,26 +140,14 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen bg-surface">
-      <aside
-        className={cn(
-          'sticky top-0 z-30 hidden h-screen shrink-0 flex-col bg-navy-900 text-white transition-all lg:flex',
-          collapsed ? 'w-[76px]' : 'w-[250px]',
-        )}
-      >
+      <aside className={cn('sticky top-0 z-30 hidden h-screen shrink-0 flex-col bg-navy-900 text-white transition-all lg:flex', collapsed ? 'w-[76px]' : 'w-[250px]')}>
         {renderNav({ compact: collapsed, showCollapse: true })}
       </aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <button
-            type="button"
-            className="absolute inset-0 bg-navy-950/60 backdrop-blur-sm"
-            aria-label="Close menu"
-            onClick={() => setMobileOpen(false)}
-          />
-          <aside className="relative flex h-full w-[min(280px,85vw)] flex-col bg-navy-900 text-white shadow-2xl">
-            {renderNav({ compact: false, showClose: true })}
-          </aside>
+          <button type="button" className="absolute inset-0 bg-navy-950/60 backdrop-blur-sm" aria-label="Close menu" onClick={() => setMobileOpen(false)} />
+          <aside className="relative flex h-full w-[min(280px,85vw)] flex-col bg-navy-900 text-white shadow-2xl">{renderNav({ compact: false, showClose: true })}</aside>
         </div>
       )}
 
@@ -196,49 +162,13 @@ export function AppShell({
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="min-w-0 truncate text-base font-bold text-ink sm:text-lg">
-              {breadcrumb ?? title}
-            </div>
+            <Breadcrumbs items={crumbs} />
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <LanguageSwitch variant="light" />
-            <button
-              type="button"
-              title={t('common.search')}
-              className="hidden rounded-full border border-slate-200 bg-white p-2 text-muted hover:bg-slate-50 sm:inline-flex"
-            >
-              <Search className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className="hidden rounded-full border border-slate-200 bg-white p-2 text-muted hover:bg-slate-50 sm:inline-flex"
-            >
-              <Bell className="h-4 w-4" />
-            </button>
-            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pr-2 pl-1 sm:gap-3 sm:pr-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-900 text-xs font-bold text-white sm:h-9 sm:w-9">
-                {user?.initials}
-              </div>
-              <div className="hidden leading-tight min-[480px]:block">
-                <div className="max-w-[120px] truncate text-sm font-semibold sm:max-w-[160px]">
-                  {user?.name}
-                </div>
-                <div className="max-w-[120px] truncate text-xs text-muted sm:max-w-[160px]">
-                  {t(roleTitleKey(user?.role))}
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              title={t('common.logOut')}
-              onClick={() => {
-                logout()
-                navigate('/')
-              }}
-              className="rounded-full border border-slate-200 bg-white p-2 text-muted hover:bg-slate-50"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+            <SchoolLogo className="hidden md:block" />
+            <GlobalSearch />
+            <NotificationBell />
+            <UserMenu />
           </div>
         </header>
         <main className="flex-1 overflow-x-hidden p-4 sm:p-6">{children}</main>
